@@ -1,0 +1,2 @@
+# PR-FRI
+Podatkovno rudarjenej
