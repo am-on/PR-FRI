@@ -1,2 +1,2 @@
 # PR-FRI
-Podatkovno rudarjenej
+Podatkovno rudarjenje
