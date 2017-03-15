@@ -40,5 +40,23 @@ def bestMeanRatedMovies():
 
     return r
 
+def genresDist():
+   
+    reader = DictReader(open('data/movies.csv', 'rt', encoding='utf-8'))
+    genres = dict()
+
+    for row in reader:
+        g = row['genres']
+        for genre in g.split('|'):
+            if(genre not in genres.keys()):
+                genres[genre] = 0
+            genres[genre] += 1
+
+    print(genres)
+
+genresDist()
+
 for score, movie in bestMeanRatedMovies()[0:10]:
     print(round(score,3), movie)
+
+
