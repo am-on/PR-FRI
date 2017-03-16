@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-
 def bestMeanRatedMovies():
     # http://stackoverflow.com/questions/7089379/most-efficient-way-to-sum-huge-2d-numpy-array-grouped-by-id-column
 
@@ -45,6 +44,7 @@ def bestMeanRatedMovies():
 
     return r
 
+
 def genresDist():
    
     reader = DictReader(open('data/movies.csv', 'rt', encoding='utf-8'))
@@ -73,9 +73,51 @@ def genresDist():
     plt.savefig('myfig.png')
 
 
+def numberOfRatesVsMeanRate():
+
+    reader = DictReader(open('data/ratings.csv', 'rt', encoding='utf-8'))
+
+    movieRatings = dict()
+
+    for row in reader:
+        user = row['userId']
+        movie = row['movieId']
+        rating = row['rating']
+        timestamp = row['timestamp']
+
+        if movie not in movieRatings.keys():
+            movieRatings[movie] = []
+
+        movieRatings[movie] = movieRatings[movie] + [float(rating),]
+
+    reader = DictReader(open('data/movies.csv', 'rt', encoding='utf-8'))
+    for row in reader:
+        movie = row['movieId']
+        title = row['title']
+
+        if movie not in movieRatings.keys():
+            movieRatings[movie] = []
+
+        movieRatings[movie] = (movieRatings[movie], title)
+
+    r = []
+
+    for movieId, data in movieRatings.items():
+        ratings, title = data
+        if len(ratings) > 0:
+            r.append((np.mean(ratings), len(ratings), title))
+
+    r.sort()
+
+    plt.figure(figsize=(20, 15))
+    plt.plot([score for score, n, move in r], [n for score, n, move in r])
+
+    plt.show()
+    plt.savefig('myfig2.png')
+
+    return r
+
 genresDist()
 
 for score, movie in bestMeanRatedMovies()[0:10]:
     print(round(score,3), movie)
-
-
