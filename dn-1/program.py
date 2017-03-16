@@ -1,5 +1,10 @@
 from csv import DictReader
+
+import matplotlib
 import numpy as np
+import matplotlib.pyplot as plt
+
+
 
 def bestMeanRatedMovies():
     # http://stackoverflow.com/questions/7089379/most-efficient-way-to-sum-huge-2d-numpy-array-grouped-by-id-column
@@ -52,7 +57,21 @@ def genresDist():
                 genres[genre] = 0
             genres[genre] += 1
 
-    print(genres)
+    genres = sorted(genres.items(), key=lambda x: x[1])[::-1]
+
+    x = range(len(genres))
+
+    plt.figure(figsize=(20, 15))
+    plt.bar(x, [n for genre, n in genres])
+    plt.xlim(-0.5, len(genres) - 0.5)
+    plt.xticks(x)
+    plt.gca().set_xticklabels([genre for genre, n in genres], rotation=90)
+
+    plt.ylabel("Število filmov")
+
+    plt.show()
+    plt.savefig('myfig.png')
+
 
 genresDist()
 
