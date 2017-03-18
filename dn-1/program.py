@@ -4,6 +4,7 @@ import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import multivariate_normal as mvn
+from datetime import datetime
 
 
 def bestMeanRatedMovies():
@@ -128,7 +129,7 @@ def ratingsThroughTime(timeFrame):
         user = row['userId']
         movie = row['movieId']
         rating = row['rating']
-        timestamp = row['timestamp']
+        timestamp = int(row['timestamp'])
 
         if movie not in movieRatings.keys():
             movieRatings[movie] = []
@@ -143,7 +144,7 @@ def ratingsThroughTime(timeFrame):
 
 
         for i, value in enumerate(movieRatings[movie]):
-            if i<=0: continue
+            if i <= 0: continue
 
             time, rating, meanR = value
 
@@ -162,27 +163,28 @@ def ratingsThroughTime(timeFrame):
         for i, d in enumerate(data[1:]):
             time, rating, meanR = d
             if i % (timeFrame/2) == 0:
-                dist.append(oldMeanR-meanR)
+                dist.append((movie, oldMeanR-meanR))
                 oldMeanR = meanR
 
 
+    meanDist = [mean for movie, mean in dist]
 
     # draw hist of changes in mean ratings
     plt.figure(figsize=(20, 15))
-    plt.hist(dist, normed=False, bins=15)
+    plt.hist(meanDist, normed=False, bins=15)
     plt.xlabel("X - Razlika v povprečju %s ocen" % timeFrame)
     plt.ylabel("Število vzorcev")
     plt.savefig('myfig3.png')
 
-    n = len(dist)
-    mu = np.mean(dist)  # ocena sredine
-    sigma2 = (n - 1) / n * np.var(dist)  # ocena variance
+    n = len(meanDist)
+    mu = np.mean(meanDist)  # ocena sredine
+    sigma2 = (n - 1) / n * np.var(meanDist)  # ocena variance
 
     # Meritev, ki bi jo radi statisticno ocenili
-    qx = -2.0
+    qx = 0.9
 
     # Izračunamo P(x) za dovolj velik interval
-    xr = np.linspace(-5, 5, 20)
+    xr = np.linspace(-3, 3, 35)
     width = xr[1] - xr[0]  # sirina intervala
     Px = [mvn.pdf(x, mu, sigma2) * (xr[1] - xr[0]) for x in xr]
 
@@ -197,7 +199,7 @@ def ratingsThroughTime(timeFrame):
 
     # Graf funkcije
     plt.figure()
-    plt.plot(xr, Px, linewidth=2.0, )
+    plt.plot(xr, Px, linewidth=2.0, label="aa" )
     plt.fill_between(ltx, 0, P_ltx, alpha=0.2, )
     plt.text(qx, mvn.pdf(qx, mu, sigma2) * width,
              "p=%f" % p_value,
@@ -221,9 +223,27 @@ def ratingsThroughTime(timeFrame):
     print("Verjetnost šale z oceno %.3f ali manj (statistična značilnost): " % qx + "%.3f" % (100 * p_value) + " %")
     print("Nenavadnost šale %s statistično značilna (prag = %.3f" % (sig, 100 * alpha), "%)")
 
-    # todo: find two examples of movies with unordinary change in mean rate
 
-    print(movieRatings['60'])
+    for movie, dist in dist:
+        if abs(dist) > 0.8 and len(movieRatings[movie]) > 100:
+            #print(movieRatings[movie])
+            x = []
+            y = []
+
+            for date, rate, meanR in movieRatings[movie]:
+                x.append(date)
+                y.append(meanR)
+            print(x)
+            print(y)
+            plt.figure(figsize=(20, 15))
+
+            plt.plot(range(len(y[2:])), y[2:])
+            plt.axis([0, len(y[2:]), 0, 5])
+            plt.show()
+            plt.savefig(movie + '.png')
+
+
+    #print(movieRatings['60'])
 
 
 ratingsThroughTime(30)
