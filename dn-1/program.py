@@ -59,20 +59,20 @@ def genresDist():
                 genres[genre] = 0
             genres[genre] += 1
 
+    print(genres)
     genres = sorted(genres.items(), key=lambda x: x[1])[::-1]
-
+    print(genres)
     x = range(len(genres))
 
-    plt.figure(figsize=(20, 15))
+    plt.figure(figsize=(10, 13))
+    plt.suptitle('Porazdelitev žanrov', fontsize=14, fontweight='bold')
     plt.bar(x, [n for genre, n in genres])
     plt.xlim(-0.5, len(genres) - 0.5)
     plt.xticks(x)
     plt.gca().set_xticklabels([genre for genre, n in genres], rotation=90)
-
     plt.ylabel("Število filmov")
-
     plt.show()
-    plt.savefig('myfig.png')
+    plt.savefig('genresDist.png')
 
 
 def numberOfRatesVsMeanRate():
@@ -111,11 +111,14 @@ def numberOfRatesVsMeanRate():
 
     r.sort()
 
-    plt.figure(figsize=(20, 15))
+    plt.figure(figsize=(10, 5))
+    plt.suptitle('Odvisnost med številom ogledov in povprečno oceno filma', fontsize=14, fontweight='bold')
     plt.plot([score for score, n, move in r], [n for score, n, move in r])
+    plt.xlabel("Povprečna ocena")
+    plt.ylabel("Število oglecov (ocen)")
 
     plt.show()
-    plt.savefig('myfig2.png')
+    plt.savefig('viewsVsMeanRate.png')
 
     return r
 
@@ -224,7 +227,7 @@ def ratingsThroughTime(timeFrame):
         oldMeanR = data[0][2]
         for i, d in enumerate(data[1:]):
             time, rating, meanR = d
-            if i % (timeFrame) == 0:
+            if i % (timeFrame/2) == 0:
                 dist.append((movie, oldMeanR-meanR))
                 oldMeanR = meanR
 
@@ -232,16 +235,18 @@ def ratingsThroughTime(timeFrame):
     meanDist = [mean for movie, mean in dist]
 
     # draw hist of changes in mean ratings
-    plt.figure(figsize=(20, 15))
+    plt.figure(figsize=(8, 4))
+    plt.suptitle('Razlike v popularnosti filmov skozi čas', fontsize=14, fontweight='bold')
     plt.hist(meanDist, normed=False, bins=15)
-    plt.xlabel("X - Razlika v povprečju %s ocen" % timeFrame)
-    plt.ylabel("Število vzorcev")
-    plt.savefig('myfig3.png')
+    plt.xlabel("Razlika v povprečju med dvema časovnima obdobjema (%s ocen)" % timeFrame)
+    plt.ylabel("Število časovnih obdobij")
+    plt.savefig('popularityChangesHist.png')
 
-    pTest(-1.1, meanDist)
+    pTest(-1, meanDist)
 
     for movie, dist in dist:
-        if abs(dist) > 1.1 and len(movieRatings[movie]) > 100:
+        #if abs(dist) > 1 and len(movieRatings[movie]) > 100:
+        if movie == '595' or movie == '34':
 
             x = []
             y = []
@@ -250,7 +255,7 @@ def ratingsThroughTime(timeFrame):
                 x.append(datetime.fromtimestamp(date).strftime("%d. %m. '%y"))
                 y.append(meanR)
 
-            fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
             fig.suptitle('Popularnost filma %s skozi čas' % movieNames[movie], fontsize=14, fontweight='bold')
 
             axes[0].plot(range(len(y[timeFrame:])), y[timeFrame:])
@@ -266,10 +271,11 @@ def ratingsThroughTime(timeFrame):
             plt.show()
             plt.savefig(movie + '.png')
 
+numberOfRatesVsMeanRate()
 
 ratingsThroughTime(30)
-
+#
 genresDist()
-
-for score, movie in bestMeanRatedMovies()[0:10]:
-    print(round(score,3), movie)
+#
+# for score, movie in bestMeanRatedMovies()[0:10]:
+#     print(movie + " & " + str(round(score,3)) + " \\\\")
