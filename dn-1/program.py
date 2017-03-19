@@ -271,11 +271,52 @@ def ratingsThroughTime(timeFrame):
             plt.show()
             plt.savefig(movie + '.png')
 
-numberOfRatesVsMeanRate()
+def castPopularity():
+    reader = DictReader(open('data/ratings.csv', 'rt', encoding='utf-8'))
 
-ratingsThroughTime(30)
+    movieRatings = dict()
+
+    for row in reader:
+        user = row['userId']
+        movie = row['movieId']
+        rating = row['rating']
+        timestamp = row['timestamp']
+
+        if movie not in movieRatings.keys():
+            movieRatings[movie] = []
+
+        movieRatings[movie] = movieRatings[movie] + [float(rating),]
+
+    for movie, ratings in movieRatings.items():
+        movieRatings[movie] = sum(movieRatings[movie])
+
+
+    reader = DictReader(open('data/cast.csv', 'rt', encoding='utf-8'))
+
+    castPopularity = dict()
+
+    for row in reader:
+        movie = row['movieId']
+        cast = row['cast']
+
+        for actor in cast.split('|'):
+            if actor not in castPopularity.keys():
+                castPopularity[actor] = 0
+            castPopularity[actor] += movieRatings[movie] if movie in movieRatings.keys() else 0
+
+    castPopularity = sorted(castPopularity.items(), key=lambda x: x[1])[::-1]
+
+    return castPopularity
+
+
+for actor, rang in castPopularity()[:10]:
+    if actor:
+        print(actor + " & " + str(rang) + " \\\\")
+# numberOfRatesVsMeanRate()
 #
-genresDist()
-#
+# ratingsThroughTime(30)
+# #
+# genresDist()
+# #
 # for score, movie in bestMeanRatedMovies()[0:10]:
 #     print(movie + " & " + str(round(score,3)) + " \\\\")
