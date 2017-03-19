@@ -119,12 +119,61 @@ def numberOfRatesVsMeanRate():
 
     return r
 
+
+
+def pTest(qx, data):
+    n = len(data)
+    mu = np.mean(data)  # ocena sredine
+    sigma2 = (n - 1) / n * np.var(data)  # ocena variance
+
+
+    # Izračunamo P(x) za dovolj velik interval
+    xr = np.linspace(-3, 3, 35)
+    width = xr[1] - xr[0]  # sirina intervala
+    Px = [mvn.pdf(x, mu, sigma2) * (xr[1] - xr[0]) for x in xr]
+
+    # Vse vrednosti, ki so manjše od qx
+    ltx = xr[xr < qx]
+
+    # Množimo s širino intervala, da dobimo ploščino pod krivuljo
+    P_ltx = [mvn.pdf(x, mu, sigma2) * width for x in ltx]
+
+    # p-vrednost: ploscina pod krivuljo P(x) za vse vrednosti, manjse od qx
+    p_value = np.sum(P_ltx)
+
+    # Graf funkcije
+    plt.figure()
+    plt.plot(xr, Px, linewidth=2.0, label="razlika v popularnosti med dvema obdobjema")
+    plt.fill_between(ltx, 0, P_ltx, alpha=0.2, )
+    plt.text(qx, mvn.pdf(qx, mu, sigma2) * width,
+             "p=%f" % p_value,
+             horizontalalignment="right",
+             verticalalignment="center", )
+
+    plt.xlabel("X - povprečna razlika v popularnosti med dvema obdobjema.")
+    plt.ylabel("P(X)")
+    plt.legend()
+    plt.savefig('myfig4.png')
+    plt.show()
+
+    # Poglejmo, ali je meritev statistično značilna pri danem pragu alpha (0.05, 0.01, 0.001 ... )
+    alpha = 0.05
+    if p_value < alpha:
+        sig = "JE"
+    else:
+        sig = "NI"
+
+    # Rezultat statističnega testa
+    print("Verjetnost za razliko v popularnosti %.3f ali manj (statistična značilnost): " % qx + "%.3f" % (100 * p_value) + " %")
+    print("Razlika v popularnosti %s statistično značilna (prag = %.3f" % (sig, 100 * alpha), "%)")
+
+
 def ratingsThroughTime(timeFrame):
     reader = DictReader(open('data/ratings.csv', 'rt', encoding='utf-8'))
 
     movieRatings = dict()
 
-    # read data
+    # read ratings data
     for row in reader:
         user = row['userId']
         movie = row['movieId']
@@ -136,6 +185,19 @@ def ratingsThroughTime(timeFrame):
 
         # last float(rating) is reserved for mean rating of last timeFrame ratings
         movieRatings[movie] = movieRatings[movie] + [(timestamp, float(rating), float(rating))]
+
+    #movieId, title, genres
+
+
+    movieNames = dict()
+
+    reader = DictReader(open('data/movies.csv', 'rt', encoding='utf-8'))
+    for row in reader:
+        id = row['movieId']
+        title = row['title']
+
+        movieNames[id] = title
+
 
     # add mean rating of last timeFrame ratings
     for movie, data in movieRatings.items():
@@ -162,7 +224,7 @@ def ratingsThroughTime(timeFrame):
         oldMeanR = data[0][2]
         for i, d in enumerate(data[1:]):
             time, rating, meanR = d
-            if i % (timeFrame/2) == 0:
+            if i % (timeFrame) == 0:
                 dist.append((movie, oldMeanR-meanR))
                 oldMeanR = meanR
 
@@ -176,74 +238,33 @@ def ratingsThroughTime(timeFrame):
     plt.ylabel("Število vzorcev")
     plt.savefig('myfig3.png')
 
-    n = len(meanDist)
-    mu = np.mean(meanDist)  # ocena sredine
-    sigma2 = (n - 1) / n * np.var(meanDist)  # ocena variance
-
-    # Meritev, ki bi jo radi statisticno ocenili
-    qx = 0.9
-
-    # Izračunamo P(x) za dovolj velik interval
-    xr = np.linspace(-3, 3, 35)
-    width = xr[1] - xr[0]  # sirina intervala
-    Px = [mvn.pdf(x, mu, sigma2) * (xr[1] - xr[0]) for x in xr]
-
-    # Vse vrednosti, ki so manjše od qx
-    ltx = xr[xr < qx]
-
-    # Množimo s širino intervala, da dobimo ploščino pod krivuljo
-    P_ltx = [mvn.pdf(x, mu, sigma2) * width for x in ltx]
-
-    # p-vrednost: ploscina pod krivuljo P(x) za vse vrednosti, manjse od qx
-    p_value = np.sum(P_ltx)
-
-    # Graf funkcije
-    plt.figure()
-    plt.plot(xr, Px, linewidth=2.0, label="aa" )
-    plt.fill_between(ltx, 0, P_ltx, alpha=0.2, )
-    plt.text(qx, mvn.pdf(qx, mu, sigma2) * width,
-             "p=%f" % p_value,
-             horizontalalignment="right",
-             verticalalignment="center", )
-
-    plt.xlabel("X - povprečna ocena šale.")
-    plt.ylabel("P(X)")
-    plt.legend()
-    plt.savefig('myfig4.png')
-    plt.show()
-
-    # Poglejmo, ali je meritev statistično značilna pri danem pragu alpha (0.05, 0.01, 0.001 ... )
-    alpha = 0.05
-    if p_value < alpha:
-        sig = "JE"
-    else:
-        sig = "NI"
-
-    # Rezultat statističnega testa
-    print("Verjetnost šale z oceno %.3f ali manj (statistična značilnost): " % qx + "%.3f" % (100 * p_value) + " %")
-    print("Nenavadnost šale %s statistično značilna (prag = %.3f" % (sig, 100 * alpha), "%)")
-
+    pTest(-1.1, meanDist)
 
     for movie, dist in dist:
-        if abs(dist) > 0.8 and len(movieRatings[movie]) > 100:
-            #print(movieRatings[movie])
+        if abs(dist) > 1.1 and len(movieRatings[movie]) > 100:
+
             x = []
             y = []
 
             for date, rate, meanR in movieRatings[movie]:
-                x.append(date)
+                x.append(datetime.fromtimestamp(date).strftime("%d. %m. '%y"))
                 y.append(meanR)
-            print(x)
-            print(y)
-            plt.figure(figsize=(20, 15))
 
-            plt.plot(range(len(y[2:])), y[2:])
-            plt.axis([0, len(y[2:]), 0, 5])
+            fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+            fig.suptitle('Popularnost filma %s skozi čas' % movieNames[movie], fontsize=14, fontweight='bold')
+
+            axes[0].plot(range(len(y[timeFrame:])), y[timeFrame:])
+            axes[0].axis([timeFrame, len(y[timeFrame:]), 0, 5])
+            axes[0].set_xlabel("Število ocen")
+            axes[0].set_ylabel("Povprečna ocena v obdobju")
+
+            axes[1].plot(range(len(y[timeFrame:])), y[timeFrame:])
+            axes[1].axis([timeFrame, len(y[timeFrame:]), min(y[timeFrame:])-0.01, max(y[timeFrame:])+0.01])
+            axes[1].set_xlabel("Število ocen")
+            axes[1].set_ylabel("Povprečna ocena v obdobju")
+
             plt.show()
             plt.savefig(movie + '.png')
-
-
-    #print(movieRatings['60'])
 
 
 ratingsThroughTime(30)
