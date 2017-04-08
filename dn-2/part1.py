@@ -7,32 +7,26 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(color_codes=True)
 
-def gausParams(x):
-    mu_fit = np.mean(x)
-    sigma2_fit = (len(x) - 1) / len(x) * np.var(x)
-    return (mu_fit, sigma2_fit)
-
-dfRatings = pd.read_csv('../data/ratings.csv')
-dfMovies = pd.read_csv('../data/movies.csv')
-
-
 def pTest(qx, data, graph=False):
     n = len(data)
     mu = data.mean() # ocena sredine
     sigma2 = (n - 1) / n * data.var()  # ocena variance
 
+    params = stats.beta.fit(data)
+
 
     # Izračunamo P(x) za dovolj velik interval
     xr = np.linspace(0, 5, 250)
     width = xr[1] - xr[0]  # sirina intervala
-    Px = [mvn.pdf(x, mu, sigma2) * (xr[1] - xr[0]) for x in xr]
+
+    Px = [stats.beta.pdf(x, *params) * (xr[1] - xr[0]) for x in xr]
 
 
     # Vse vrednosti, ki so manjše od qx
     ltx = xr[xr > qx]
 
     # Množimo s širino intervala, da dobimo ploščino pod krivuljo
-    P_ltx = [mvn.pdf(x, mu, sigma2) * width for x in ltx]
+    P_ltx = [ stats.beta.pdf(x, *params) * width for x in ltx]
 
     # p-vrednost: ploscina pod krivuljo P(x) za vse vrednosti, manjse od qx
     p_value = np.sum(P_ltx)
@@ -60,54 +54,39 @@ def pTest(qx, data, graph=False):
     return p_value < alpha
 
 
-# print(dfRatings.groupby(by='movieId')['rating'].var())
-#
-# print(dfRatings.loc[dfRatings['movieId'] == 163949])
+
+dfRatings = pd.read_csv('../data/ratings.csv')
+dfMovies = pd.read_csv('../data/movies.csv')
 
 # transform df
 df = dfRatings.pivot(index='userId', columns='movieId', values='rating')
-df = df.dropna(axis=1, how='any', thresh=20, subset=None, inplace=False)
+df = df.dropna(axis=1, how='any', thresh=10, subset=None, inplace=False)
 
 
-# fill missing values with mean value of movie rating
-df = df.T
-df = df.fillna(df.mean())
-df = df.T
-# df = df.round(0).apply(np.int64)
+x = df.var()
 
-sns.distplot(df[260]).figure.savefig("output.png")
-
-fig = sns.distplot(df.var(), kde=False, hist=False, fit=stats.nct, fit_kws={"label": "studentova porazdelitev", "color":"r"} )
-fig = sns.distplot(df.var(), fit=stats.nct, kde_kws={"label": "dejanska porazdelitev"}, fit_kws={"label": "normalna porazdelitev", "color":"r"}, color='b' )
-
-
+fig = sns.distplot(x, kde=False, hist=False, fit=stats.beta, fit_kws={"label": "beta porazdelitev", "color":"r"} )
+fig = sns.distplot(x, fit=stats.beta, kde_kws={"label": "dejanska porazdelitev"}, fit_kws={"label": "beta porazdelitev", "color":"r"}, color='b' )
+#
+#
 plt.yticks(fig.get_yticks(), fig.get_yticks() * 100)
-plt.xlim(0,5)
+plt.xlim(0,4)
 fig.set(xlabel='varianca', ylabel='število filmov')
-plt.title('Porazdelitev variance ocen filmov')
-fig.figure.savefig("porazdelitev.png")
+plt.title('Porazdelitev varianc ocen filmov')
+fig.figure.savefig("porazdelitevBeta.png")
 
-plt.figure(figsize=(10, 5))
-plt.suptitle('Odvisnost med številom ogledov in povprečno oceno filma', fontsize=14, fontweight='bold')
-plt.hist(df.var().get_values())
-plt.xlabel("Povprečna ocena")
-plt.ylabel("Število oglecov (ocen)")
 
-plt.show()
-plt.savefig('viewsVsMeanRate.png')
 
-# print(df)
-print(df.var().nlargest(10))
 
-x = df.var().get_values()
-# print(gausParams(x))
 
-# unordinary = [pTest(v,x) for v in x]
-#
-#
-#
-# print(df.var()[unordinary])
-#
-# pTest(1.379,x, graph=True)
-stat = list(df.var().nlargest(10).index)
-print(dfMovies.loc[dfMovies['movieId'].isin(stat)])
+params = stats.beta.fit(x)
+print(params)
+
+unordinary = [pTest(v,x) for v in x]
+
+print(len(unordinary))
+
+print(list(df.var().nlargest(10)))
+
+print(dfMovies[dfMovies['movieId'].isin(x[unordinary].nlargest(10).index)]['title'])
+print(len(dfMovies[dfMovies['movieId'].isin(x[unordinary].index)]['title']))

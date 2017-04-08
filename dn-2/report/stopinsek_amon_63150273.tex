@@ -45,9 +45,9 @@ backgroundcolor=\color{light-gray},
 % V tem razdelku, ki naj bo kratek in naj obsega en odstavek z do 150
 % besed, na kratko opišeš, kaj je bil cilj naloge.
 
-V nalogi smo se lotili iskanja osamelcev in gruč. V prvem delu naloge smo
-poiskali filme o katerih so si gledalci najmanj enotni. Problema smo se lotili
-z izračunom variance za vsak film in p testa. V drugem delu naloge smo poiskali
+V nalogi sem se lotil iskanja osamelcev in gruč. V prvem delu naloge sem
+poiskali filme o katerih so si gledalci najmanj enotni. Problema sem se lotili
+z izračunom variance za vsak film in p testa. V drugem delu naloge sem poiskal
 filme, ki so si med seboj najbolj podobni.
 
 \section{Podatki}
@@ -60,7 +60,7 @@ filme, ki so si med seboj najbolj podobni.
 % spremenljivk, in podobno. Če si podatke pridobil sam, tu opišeš, na
 % kakšen način, kje in kako.
 
-Pri nalogi smo uporabili podatkovno zbirko
+Pri nalogi sem uporabili podatkovno zbirko
 \href{https://grouplens.org/datasets/movielens/}{Movie Lens}.
 
 \section{Metode}
@@ -99,7 +99,7 @@ Pri nalogi smo uporabili podatkovno zbirko
 % programskem jeziku v okolje \LaTeX{}.
 
 \subsection{Iskanje osamelcev}
-Za iskanju osamelcev na podlagi variance ocen smo najprej preoblikovali
+Za iskanju osamelcev na podlagi variance ocen sem najprej preoblikoval
 originalno obliko podatkov v datoteki ratings.csv v matriko\ref{tab2} kjer stolpci
 predstavljajo filme, vrstice uporabnike, vrednosti pa predstavljajo oceno
 filma določenega uporabnika.
@@ -128,16 +128,16 @@ userId / movieId & 1 & 2 & 3 & 5 & 6 \\
 \end{center}
 \end{table}
 
-Za izračun filmov o katerih so si gledalci najmanj enotni smo uporabili varianco. Izračun variance ocen vsakega filma je bil zaradi oblike podatkov in uporabe knjižice \href{http://pandas.pydata.org/index.html}{pandas} precej preprost.
+Za izračun filmov o katerih so si gledalci najmanj enotni sem uporabil varianco. Izračun variance ocen vsakega filma je bil zaradi oblike podatkov in uporabe knjižice \href{http://pandas.pydata.org/index.html}{pandas} precej preprost.
 
 \begin{lstlisting}
 df.var()
 \end{lstlisting}
 
-Pri prikazu porazdelitve izračunanih varianc so lepo porazdelitev "pokvarili"\ref{slika1}\hspace{0cm} filmi z malo ocenami. Problem smo rešili tako, da smo izločili filme z manj kot 20 ocenami.
+Pri prikazu porazdelitve izračunanih varianc so lepo porazdelitev "pokvarili"\ref{slika1}\hspace{0cm} filmi z malo ocenami. Problem sem rešil tako, da sem izločili filme z manj kot 10 ocenami. Za iskanje osamelcev je s tem ostalo 2245 filmov.
 
 \begin{lstlisting}
-df = df.dropna(axis=1, how='any', thresh=20, subset=None, inplace=False)
+df = df.dropna(axis=1, how='any', thresh=10, subset=None, inplace=False)
 \end{lstlisting}
 
 \begin{figure}[htbp]
@@ -147,6 +147,18 @@ df = df.dropna(axis=1, how='any', thresh=20, subset=None, inplace=False)
 \label{slika1}
 \end{center}
 \end{figure}
+
+\subsection{Gručenje filmov}
+Iskanja skupin med filmi sem se lotil na podoben način kot iskanja osamelcev. Iz podatkov sem najprej sestavil matriko
+film / uporabnik.
+
+Gručenja sem se najprej lotil z metodo k-Means. Preizkusil sem različne možnosti za izračun razdalje (evklidska, manhatenska, razdalja je 1 - presek uporabnikov, ki so ocenili oba filma deljeno z unijo uporabnikov, ki so ocenili vsaj enega izmed filmov, ...). Najbolje se je izkazala evklidska razdalja, tudi z uporabo le te pa so bili rezultati gručenja še vedno neuporabni.
+
+Zaradi slabih rezultatov z metodo k-means sem za gručenje preizkusil še metodo DBSCAN. Tudi uporaba te metode se ni izkazala za uspešno, vse filme je označila kot šum, ali pa vsak film razvrstila v svojo skupino.
+
+Preizkusil sem še hirearhično gručenje\ref{slika7} z wardovo metodo. Tudi ta se ni izkazala z uporabnimi rezultati.
+
+Podatke sem izvozil še v format .xslx in jih uporabil v programu Orange. Tudi tam mi ni uspelo iz danih podatkov poiskati dobrih skupin z uporabo metod k-means in hirearhično razvrščanje.
 
 \section{Rezultati}
 
@@ -184,7 +196,7 @@ df = df.dropna(axis=1, how='any', thresh=20, subset=None, inplace=False)
 \subsection{Iskanje osamelcev}
 Na vprašanje kateri filmi imajo najbolj razpršene ocene odgovori varianca ocen posameznega filma. 
 
-Graf\ref{slika2} prikazuje kako so porazdeljene variance ocen vseh filmov z več kot 20 ocenami.
+Graf\ref{slika2} prikazuje kako so porazdeljene variance ocen vseh filmov z več kot 10 ocenami.
 
 \begin{figure}[htbp]
 \begin{center}
@@ -194,24 +206,85 @@ Graf\ref{slika2} prikazuje kako so porazdeljene variance ocen vseh filmov z več
 \end{center}
 \end{figure}
 
-Dobljena porazdelitev zgleda precej podobna normalni. Izračunani oceni parametrov za normalno porazdelitev sta:  
-\[ \mu = 0.88520202707146001 \]  
-\[ \sigma^2 = 0.081338831797748562 \]  
+Dobljena porazdelitev precej odstopa od normalne\ref{slika2}. Od porazdelitev, ki smo jih spoznali porazdelitvi še najbolje ustreza porazdelitev beta. Izračunani oceni parametrov za beta porazdelitev so:
+\begin{lstlisting}
+params = stats.beta.fit(x)
+print(params)
+>(6.9075978787295238, 27.945073303130876, -0.1175160335964828, 5.149025912550294)
+\end{lstlisting}
 
-Izračunan parametra približno opisujeta že narisano krivuljo na grafu\ref{slika2}. Za boljšo predstavo lahko
-primerjamo podobnost krivulj na grafu\ref{slika2}, ki ima dorisano še krivuljo normalne porazdelitve.
 
-Porazdelitvi se še bolje kot normalna prilega studentova porazdelitev. 
+Na grafu\ref{slika5}, ki ima dorisano še krivuljo beta porazdelitve lahko primerjamo ujemanje beta porazdelitve z dejansko.
+
+Preizkusil sem še nekaj ostalih porazdelitev. Za najboljšo se je izkazala \href{https://en.wikipedia.org/wiki/Noncentral_t-distribution}{Noncentral t-distribution}\ref{slika4}. 
+
 
 \begin{figure}[htbp]
 \begin{center}
-\includegraphics[scale=0.7]{porazdelitevStudent.png}
-\caption{Primerjava krivulje porazdelitve s studentovo}
-\label{slika4}
+\includegraphics[scale=0.7]{porazdelitevBeta.png}
+\caption{Primerjava krivulje porazdelitve z Beta}
+\label{slika5}
 \end{center}
 \end{figure}
 
 
+V zgornjih 5\% statistično najbolj značilnih filmov spada 133 filmov od 2245. Tabela\ref{tab3} prikazuje 10 filmov, ki so med vsemi najbolj izstopali.
+
+
+\begin{table}[htbp]
+\caption{10 najbolj statistično značilnih filmov}
+\label{tab3}
+\begin{center}
+\begin{tabular}{lp{2cm}}
+\hline
+naslov filma & varianca \\
+\hline
+Killing Zoe (1994) & 2.620\\
+Dead Man (1995) & 2.558 \\
+Christmas Carol, A (1938) & 2.428\\
+Cook the Thief His Wife \& Her Lover, The (1989) & 2.372 \\
+Stalker (1979) & 2.323\\
+Event Horizon (1997) & 2.322 \\
+Great Expectations (1998) & 2.317 \\
+Dungeons \& Dragons (2000) & 2.316 \\
+The Hunger Games: Mockingjay - Part 1 (2014) & 2.281 \\
+Deadpool (2016) & 2.273 \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Gručenje filmov}
+Za gručenje filmov sem izbral metode k-means, dbscan in hirearhično razvrščanje. Za mero podobnosti sem uporabil evklidsko in manhatensko razdaljo ter wardovo metodo. Poleg naštetih sem podobnost meril tudi z razmerjem med številom uporabnikov ki so ocenili oba filma in unijo uporabnikov, ki so ocenili vsaj enega izmed filmov.
+
+Izbran nabor algoritmov za gručenje in mer podobnosti težko utemeljim, saj so se vsi izkazali za neuporabne za dani problem.
+
+Med izbranimi filmi je 53 skupin, če privzamemo, da je vsaka kombinacija žanrov svoja skupina. Če upoštevamo samo prvo napisano kategorijo, pa izbrani filmi spadajo v 11 različnih skupin\ref{tab4}. Štirje filmi izmed izbranih filmov nimajo določenega žanra.
+
+Obstaja veliko metod in ocen za ocenitev kvalitete razvrščanja v gruče kot so naprimer silhouette, dunn's index, Krzanowski-Lai index, R-square,..
+
+Za validacijo gručenja sem uporabil silhouette score, ki omogoča še vizualizacijo ocene. Ocenil sem dobljene gruče, ki sem jih dobil po uporabi metode k-means\ref{slika5} in hirearhično razvrščanje\ref{slika6}.
+
+
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.7]{k-means-silhuette.png}
+\caption{K-means silhuette}
+\label{slika5}
+\end{center}
+\end{figure}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.7]{hirearhicno-silhuette.png}
+\caption{silhuette score za hirearhično razvrščanje}
+\label{slika6}
+\end{center}
+\end{figure}
+
+
+Dobljeni rezultati so zelo slabi. Gruče delujejo zelo naključno v primerjavi s pravimi žanri. Tudi dobljena ocena silhouette je bila v obeh primerih zelo nizka, pri hirearhičnem razvrščanju ima veliko filmov tudi negativno silhuette oceno, kar pomeni, da niso podobni ostalim filmom v svojem razredu.
 
 \section{Izjava o izdelavi domače naloge}
 Domačo nalogo in pripadajoče programe sem izdelal sam.
@@ -233,34 +306,76 @@ Domačo nalogo in pripadajoče programe sem izdelal sam.
 \end{center}
 \end{figure}
 
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.7]{porazdelitevStudent.png}
+\caption{Primerjava krivulje porazdelitve z Noncentral t-distribution}
+\label{slika4}
+\end{center}
+\end{figure}
+
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.7]{hirearhicno.png}
+\caption{hirearhično razvrščanje}
+\label{slika7}
+\end{center}
+\end{figure}
+
+\begin{table}[htbp]
+\caption{Število filmov v posamezni kategoriji}
+\label{tab4}
+\begin{center}
+\begin{tabular}{lp{2cm}}
+\hline
+žanr & število filmov \\
+\hline
+
+Comedy      & 28 \\  
+Drama       & 22 \\  
+Action      & 18 \\  
+Crime       & 12 \\  
+Horror      &  6 \\  
+Adventure   &  5 \\  
+Animation   &  1 \\  
+Documentary &  1 \\  
+Mystery     &  1 \\  
+Romance     &  1 \\  
+Thriller    &  1 \\ 
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
 \section{\label{app-code}Programska koda}
 
-Za domače naloge bo tipično potrebno kaj sprogramirati. Celotno kodo oddaj
-zapakirano skupaj s poročilom v datoteki zip. V kolikor je določen izsek kode
-nujen za boljše razumevanje poročila, ga vključi v prilogo poročila.
+% Za domače naloge bo tipično potrebno kaj sprogramirati. Celotno kodo oddaj
+% zapakirano skupaj s poročilom v datoteki zip. V kolikor je določen izsek kode
+% nujen za boljše razumevanje poročila, ga vključi v prilogo poročila.
 
-Čisto
-za okus sem tu postavil nekaj kode, ki uporablja Orange
-(\url{http://www.biolab.si/orange}) in razvrščanje v skupine.
+% Čisto
+% za okus sem tu postavil nekaj kode, ki uporablja Orange
+% (\url{http://www.biolab.si/orange}) in razvrščanje v skupine.
 
 
-\begin{lstlisting}
-import random
-import Orange
+% \begin{lstlisting}
+% import random
+% import Orange
 
-data_names = ["iris", "housing", "vehicle"]
-data_sets = [Orange.data.Table(name) for name in data_names]
+% data_names = ["iris", "housing", "vehicle"]
+% data_sets = [Orange.data.Table(name) for name in data_names]
 
-print "%10s %3s %3s %3s" % ("", "Rnd", "Div", "HC")
-for data, name in zip(data_sets, data_names):
-    random.seed(42)
-    km_random = Orange.clustering.kmeans.Clustering(data, centroids = 3)
-    km_diversity = Orange.clustering.kmeans.Clustering(data, centroids = 3,
-        initialization=Orange.clustering.kmeans.init_diversity)
-    km_hc = Orange.clustering.kmeans.Clustering(data, centroids = 3,
-        initialization=Orange.clustering.kmeans.init_hclustering(n=100))
-    print "%10s %3d %3d %3d" % (name, km_random.iteration, \
-    km_diversity.iteration, km_hc.iteration)
-\end{lstlisting}
+% print "%10s %3s %3s %3s" % ("", "Rnd", "Div", "HC")
+% for data, name in zip(data_sets, data_names):
+%     random.seed(42)
+%     km_random = Orange.clustering.kmeans.Clustering(data, centroids = 3)
+%     km_diversity = Orange.clustering.kmeans.Clustering(data, centroids = 3,
+%         initialization=Orange.clustering.kmeans.init_diversity)
+%     km_hc = Orange.clustering.kmeans.Clustering(data, centroids = 3,
+%         initialization=Orange.clustering.kmeans.init_hclustering(n=100))
+%     print "%10s %3d %3d %3d" % (name, km_random.iteration, \
+%     km_diversity.iteration, km_hc.iteration)
+% \end{lstlisting}
 
 \end{document}
