@@ -47,8 +47,7 @@ backgroundcolor=\color{light-gray},
 
 V nalogi sem se lotil iskanja osamelcev in gruč. V prvem delu naloge sem
 poiskali filme o katerih so si gledalci najmanj enotni. Problema sem se lotili
-z izračunom variance za vsak film in p testa. V drugem delu naloge sem poiskal
-filme, ki so si med seboj najbolj podobni.
+z izračunom variance za vsak film in p testa. V drugem delu naloge sem s pomočjo različnih metod poskušal poiskati filme, ki so si med seboj najbolj podobni.
 
 \section{Podatki}
 
@@ -156,9 +155,9 @@ Gručenja sem se najprej lotil z metodo k-Means. Preizkusil sem različne možno
 
 Zaradi slabih rezultatov z metodo k-means sem za gručenje preizkusil še metodo DBSCAN. Tudi uporaba te metode se ni izkazala za uspešno, vse filme je označila kot šum, ali pa vsak film razvrstila v svojo skupino.
 
-Preizkusil sem še hirearhično gručenje\ref{slika7} z wardovo metodo. Tudi ta se ni izkazala z uporabnimi rezultati.
+Preizkusil sem še hirearhično gručenje z wardovo metodo. Slika \ref{slika7} prikazuje dobljeni dendogram. Tudi ta metoda se ni izkazala z uporabnimi rezultati.
 
-Podatke sem izvozil še v format .xslx in jih uporabil v programu Orange. Tudi tam mi ni uspelo iz danih podatkov poiskati dobrih skupin z uporabo metod k-means in hirearhično razvrščanje.
+Podatke sem izvozil še v format .xslx in jih uporabil v programu Orange. Tudi tam mi ni uspelo iz danih podatkov poiskati dobrih skupin z uporabo metod k-means in hirearhičnega razvrščanja.
 
 \section{Rezultati}
 
@@ -210,7 +209,7 @@ Dobljena porazdelitev precej odstopa od normalne\ref{slika2}. Od porazdelitev, k
 \begin{lstlisting}
 params = stats.beta.fit(x)
 print(params)
->(6.9075978787295238, 27.945073303130876, -0.1175160335964828, 5.149025912550294)
+> (6.90759787872952, 27.9450733031308, -0.11751603359648, 5.1490259125502)
 \end{lstlisting}
 
 
@@ -263,7 +262,7 @@ Med izbranimi filmi je 53 skupin, če privzamemo, da je vsaka kombinacija žanro
 
 Obstaja veliko metod in ocen za ocenitev kvalitete razvrščanja v gruče kot so naprimer silhouette, dunn's index, Krzanowski-Lai index, R-square,..
 
-Za validacijo gručenja sem uporabil silhouette score, ki omogoča še vizualizacijo ocene. Ocenil sem dobljene gruče, ki sem jih dobil po uporabi metode k-means\ref{slika5} in hirearhično razvrščanje\ref{slika6}.
+Za validacijo gručenja sem uporabil silhouette score, ki omogoča še vizualizacijo ocene. Ocenil sem dobljene gruče, ki sem jih dobil po uporabi metode k-means\ref{slika5} in hirearhičnega razvrščanja\ref{slika6}.
 
 
 
