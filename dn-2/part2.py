@@ -1,3 +1,13 @@
+from sklearn.cluster import DBSCAN
+from sklearn import metrics
+from sklearn.preprocessing import StandardScaler
+from scipy.cluster.hierarchy import dendrogram, linkage
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(color_codes=True)
+
 def distance(x, y):
     """
     x, y: vectors (numpy arrays)
@@ -11,7 +21,7 @@ def distance0(x, y):
     """
     d = 0
     for a, b in zip(x,y):
-        if a != 0:
+        if a != 0 and b != 0:
             d += 1
 
     return d/len(x)
@@ -71,23 +81,6 @@ class KMeans:
         return labels, centers
 
 
-
-
-from sklearn.cluster import DBSCAN
-from sklearn import metrics
-from sklearn.datasets.samples_generator import make_blobs
-from sklearn.preprocessing import StandardScaler
-
-from scipy.cluster.hierarchy import dendrogram, linkage
-
-import pandas as pd
-import numpy as np
-from scipy import stats, integrate
-from scipy.stats import multivariate_normal as mvn
-import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set(color_codes=True)
-
 dfRatings = pd.read_csv('../data/ratings.csv')
 dfMovies = pd.read_csv('../data/movies.csv')
 
@@ -109,23 +102,10 @@ writer = pd.ExcelWriter('output.xlsx')
 df.to_excel(writer,'Sheet1')
 writer.save()
 
-
-# Testirajte razred KMeans
-
-
-# Trenutno so gruče dodeljene naključno
-
+# k means
 k = 5
-
 model = KMeans(k=k, max_iter=50)
 labels, centers = model.fit(df.as_matrix())
-
-plt.figure(figsize=(10, 10))
-color = {0:"red", 1:"blue", 2:"yellow"}
-
-# print(labels)
-#
-# print(df)
 
 mv = dfMovies[dfMovies['movieId'].isin(df.index)]
 
@@ -143,23 +123,25 @@ for i in range(k):
 # df = df.T
 # df = df.round(0).apply(np.int64)
 
+# DBSCAN
+X = df.as_matrix()
+X = StandardScaler().fit_transform(X)
+db = DBSCAN(eps=0.3, min_samples=1).fit(X)
+core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+core_samples_mask[db.core_sample_indices_] = True
+labels = db.labels_
 
-# X = df.as_matrix()
-# X = StandardScaler().fit_transform(X)
-# db = DBSCAN(eps=0.3, min_samples=1).fit(X)
-# core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-# core_samples_mask[db.core_sample_indices_] = True
-# labels = db.labels_
-#
-# print(labels)
-#
-# # Number of clusters in labels, ignoring noise if present.
-# n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-#
-# print('Estimated number of clusters: %d' % n_clusters_)
-#
-# print("Silhouette Coefficient: %0.3f"
-#       % metrics.silhouette_score(X, labels))
+print(labels)
+
+# Number of clusters in labels, ignoring noise if present.
+n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+
+print('Estimated number of clusters: %d' % n_clusters_)
+
+print("Silhouette Coefficient: %0.3f"
+      % metrics.silhouette_score(X, labels))
+
+# hirearchical clustering
 X = df.as_matrix()
 Z = linkage(X, 'ward')
 
@@ -176,5 +158,4 @@ dendrogram(
     truncate_mode='lastp',  # show only the last p merged clusters
     p=10,
 )
-plt.savefig('myfig4.png')
-
+plt.savefig('hirearhicnoRazvrscanje.png')

@@ -1,7 +1,6 @@
-
 import pandas as pd
 import numpy as np
-from scipy import stats, integrate
+from scipy import stats
 from scipy.stats import multivariate_normal as mvn
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -34,26 +33,35 @@ def pTest(qx, data, graph=False):
     if graph:
         # Graf funkcije
         plt.figure()
-        plt.plot(xr, Px, linewidth=2.0, label="razlika v popularnosti med dvema obdobjema")
+        plt.plot(xr, Px, linewidth=2.0, label="p test")
         plt.fill_between(ltx, 0, P_ltx, alpha=0.2, )
         plt.text(qx, mvn.pdf(qx, mu, sigma2) * width,
                  "p=%f" % p_value,
                  horizontalalignment="right",
                  verticalalignment="center", )
 
-        plt.xlabel("X - povprečna razlika v popularnosti med dvema obdobjema.")
-        plt.ylabel("P(X)")
+        plt.xlabel("varianca")
+        plt.ylabel("število filmov")
         plt.legend()
-        plt.savefig('myfig4.png')
-        plt.show()
-
+        plt.savefig('pTest.png')
+        plt.close()
 
     # Poglejmo, ali je meritev statistično značilna pri danem pragu alpha (0.05, 0.01, 0.001 ... )
     alpha = 0.05
 
     return p_value < alpha
 
+def drawDist(x, filename, dist=None, label=None,):
+    fig = sns.distplot(x, kde=False, hist=False, fit=dist, fit_kws={"label": label, "color": "r"})
+    fig = sns.distplot(x, fit=dist, kde_kws={"label": "dejanska porazdelitev"},
+                       fit_kws={"label": label, "color": "r"}, color='b')
 
+    plt.yticks(fig.get_yticks(), fig.get_yticks() * 100)
+    plt.xlim(0, 4)
+    fig.set(xlabel='varianca', ylabel='število filmov')
+    plt.title('Porazdelitev varianc ocen filmov')
+    fig.figure.savefig(filename)
+    plt.close()
 
 dfRatings = pd.read_csv('../data/ratings.csv')
 dfMovies = pd.read_csv('../data/movies.csv')
@@ -65,18 +73,13 @@ df = df.dropna(axis=1, how='any', thresh=10, subset=None, inplace=False)
 
 x = df.var()
 
-fig = sns.distplot(x, kde=False, hist=False, fit=stats.beta, fit_kws={"label": "beta porazdelitev", "color":"r"} )
-fig = sns.distplot(x, fit=stats.beta, kde_kws={"label": "dejanska porazdelitev"}, fit_kws={"label": "beta porazdelitev", "color":"r"}, color='b' )
-#
-#
-plt.yticks(fig.get_yticks(), fig.get_yticks() * 100)
-plt.xlim(0,4)
-fig.set(xlabel='varianca', ylabel='število filmov')
-plt.title('Porazdelitev varianc ocen filmov')
-fig.figure.savefig("porazdelitevBeta.png")
+drawDist(x, "porazdelitev.png")
 
+drawDist(x, "porazdelitevNormalna.png", dist=stats.norm, label="normalna porazdelitev")
 
+drawDist(x, "porazdelitevBeta.png", dist=stats.beta, label="beta porazdelitev")
 
+drawDist(x, "porazdelitevStudent.png", dist=stats.nct, label="noncentral t porazdelitev")
 
 
 params = stats.beta.fit(x)
