@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn import linear_model
-from sklearn.metrics import explained_variance_score
 from sklearn.metrics import mean_absolute_error
 
 def learnPredictScore(model, trainX, trainY, testX, testY):
