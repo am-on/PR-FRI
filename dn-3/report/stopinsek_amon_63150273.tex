@@ -33,7 +33,7 @@ basicstyle=\ttfamily\footnotesize\setstretch{1},
 backgroundcolor=\color{light-gray},
 }
 
-\title{Nenadzorovano modeliranje}
+\title{Nadzorovano modeliranje}
 \author{Amon Stopinšek (63150273)}
 \date{\today}
 
@@ -45,9 +45,12 @@ backgroundcolor=\color{light-gray},
 % V tem razdelku, ki naj bo kratek in naj obsega en odstavek z do 150
 % besed, na kratko opišeš, kaj je bil cilj naloge.
 
-V nalogi sem se lotil iskanja osamelcev in gruč. V prvem delu naloge sem
-poiskali filme o katerih so si gledalci najmanj enotni. Problema sem se lotili
-z izračunom variance za vsak film in p testa. V drugem delu naloge sem s pomočjo različnih metod poskušal poiskati filme, ki so si med seboj najbolj podobni.
+V nalogi smo uporabili enostavne metode za napovedovanje. Glavni cilj naloge
+je bila napoved ocen filmov posameznega uporabnika na podlagi ostalih uporabnikov.
+Problem smo najprej rešili s pomočjo regresije, kjer smo napovedovali dejanske
+vrednosti. Nato smo se problema lotili še s klasifikacijo, kjer smo ocene filmov
+razdelili v dva razreda in za danega uporabnika napovedali v kateri razred bi
+uvrstil posamezni film.
 
 \section{Podatki}
 
@@ -97,67 +100,110 @@ Pri nalogi sem uporabili podatkovno zbirko
 % primernejši način vključevanja kode v Pythonu oziroma v tvojem izbranem
 % programskem jeziku v okolje \LaTeX{}.
 
-\subsection{Iskanje osamelcev}
-Za iskanju osamelcev na podlagi variance ocen sem najprej preoblikoval
-originalno obliko podatkov v datoteki ratings.csv v matriko\ref{tab2} kjer stolpci
-predstavljajo filme, vrstice uporabnike, vrednosti pa predstavljajo oceno
-filma določenega uporabnika.
+\subsection{Regresija}
+Pred gradnjo in vrednotenjem modelov je bilo potrebno podatke spraviti v
+ustrezno obliko.
+
+Podatke sem prebral in jih pretvoril v matriko filmov in uporabnikov.
 
 \begin{lstlisting}
-import pandas as pd
 dfRatings = pd.read_csv('../data/ratings.csv')
-df = dfRatings.pivot(index='userId', columns='movieId', values='rating')
+
+# transform df
+df = dfRatings.pivot(index='movieId', columns='userId', values='rating')
 \end{lstlisting}
 
-\begin{table}[htbp]
-\caption{Izsek iz matrike ocen}
-\label{tab2}
-\begin{center}
-\begin{tabular}{lllllp{2cm}}
-\hline
-userId / movieId & 1 & 2 & 3 & 5 & 6 \\
-\hline
-15 & 2.0 & 2.0 & NaN & 4.5 & 4.0 \\
-16 & NaN & NaN & NaN & NaN & NaN \\
-17 & NaN & NaN & NaN & NaN & 4.5 \\
-18 & NaN & NaN & NaN & 3.0 & 4.0 \\
-19 & 3.0 & 3.0 & 3.0 & NaN & 3.0 \\
-\hline
-\end{tabular}
-\end{center}
-\end{table}
-
-Za izračun filmov o katerih so si gledalci najmanj enotni sem uporabil varianco. Izračun variance ocen vsakega filma je bil zaradi oblike podatkov in uporabe knjižice \href{http://pandas.pydata.org/index.html}{pandas} precej preprost.
+Iz podatkov sem nato odstranil vse filme z manj kot 100 ocenami, iz dobljene
+matrike sem nato odstranil še vse uporabnike z manj kot 100 ocenami.
 
 \begin{lstlisting}
-df.var()
+# drop movies with less than 100 ratings
+df.dropna(axis=0, how='any', thresh=100, subset=None, inplace=True)
+
+# drop users with less than 100 ratings
+df.dropna(axis=1, how='any', thresh=100, subset=None, inplace=True)
 \end{lstlisting}
 
-Pri prikazu porazdelitve izračunanih varianc so lepo porazdelitev "pokvarili"\ref{slika1}\hspace{0cm} filmi z malo ocenami. Problem sem rešil tako, da sem izločili filme z manj kot 10 ocenami. Za iskanje osamelcev je s tem ostalo 2245 filmov.
+Pred začetkom granjem modelov je bilo potrebno poskrbeti še za neznane vrednosti.
+Le te sem zamenjal z oceno 0.
 
 \begin{lstlisting}
-df = df.dropna(axis=1, how='any', thresh=10, subset=None, inplace=False)
+# replace null values with 0
+df = df.fillna(0)
 \end{lstlisting}
 
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[scale=0.7]{porazdelitevPrva.png}
-\caption{Porazdelitev variance filmov brez izločanja filmov z malo ocenami}
-\label{slika1}
-\end{center}
-\end{figure}
+Za regresijo sem izbral tri modele Linear regression, Lasso in Bayesian Ridge.
 
-\subsection{Gručenje filmov}
-Iskanja skupin med filmi sem se lotil na podoben način kot iskanja osamelcev. Iz podatkov sem najprej sestavil matriko
-film / uporabnik.
+Učenja modelov sem se lotil tako, da sem za vsakega uporabnika iz matrike trikrat
+naključno izbral primere za učno in testno množico, naučil model s podatki iz
+učne množice in ga ovrednotil s pomočjo testne množice. Uporabnika za katerega
+sem gradil model, sem uporabil le kot ciljno spremenljivko, zato sem njegove
+ocene iz učne in testne množice odstranil.
 
-Gručenja sem se najprej lotil z metodo k-Means. Preizkusil sem različne možnosti za izračun razdalje (evklidska, manhatenska, razdalja je 1 - presek uporabnikov, ki so ocenili oba filma deljeno z unijo uporabnikov, ki so ocenili vsaj enega izmed filmov, ...). Najbolje se je izkazala evklidska razdalja, tudi z uporabo le te pa so bili rezultati gručenja še vedno neuporabni.
+\begin{lstlisting}
+for user in df.columns:
+    for x in range(3):
+        # split df into training and test sets
+        trainDf = df.sample(frac=.75)
+        testDf = df[~df.index.isin(trainDf.index)]
 
-Zaradi slabih rezultatov z metodo k-means sem za gručenje preizkusil še metodo DBSCAN. Tudi uporaba te metode se ni izkazala za uspešno, vse filme je označila kot šum, ali pa vsak film razvrstila v svojo skupino.
+        # get ratings of current user
+        trainUserDf = trainDf.loc[:, user].copy()
+        testUserDf = testDf.loc[:, user].copy()
 
-Preizkusil sem še hirearhično gručenje z wardovo metodo. Slika \ref{slika7} prikazuje dobljeni dendogram. Tudi ta metoda se ni izkazala z uporabnimi rezultati.
+        # drop current user from training and test sets
+        trainDf = trainDf.drop(user, 1)
+        testDf = testDf.drop(user, 1)
 
-Podatke sem izvozil še v format .xslx in jih uporabil v programu Orange. Tudi tam mi ni uspelo iz danih podatkov poiskati dobrih skupin z uporabo metod k-means in hirearhičnega razvrščanja.
+        ### learn and evaluate models ###
+\end{lstlisting}
+
+Za ovrednotenje modelov sem izbral mero Mean Absolute Error, ker se mi je ta
+mera zdela najlažja za razumevanje kako dobro oz. slabo napoveduje model.
+Dobljena ocena MAE pove, za koliko se v povprečju zmoti model pri napovedovanju
+novih vrednosti.
+
+\begin{lstlisting}
+def learnPredictScore(model, trainX, trainY, testX, testY):
+    model.fit(trainX, trainY)
+
+    # predict ratings for current user
+    prediction = model.predict(testX)
+
+    # MAE
+    return mean_absolute_error(prediction, testY)
+\end{lstlisting}
+
+
+\subsection{Klasifikacija}
+Priprava podatkov za klasifikacijo je potekala na enak način kot pri regresiji. Vrednosti v matriki filmov in uporabnikov sem pretvoril v dva razreda, 0 če je bila ocena manjša ali enaka 3, sicer 1.
+
+\begin{lstlisting}
+df = df.applymap(lambda x: 1 if x > 3 else 0)
+\end{lstlisting}
+
+Za vsakega uporabnika iz matrike sem trikrat naključno izbral primerke za učno in testno množico, naučil modele ter jih ovrednotil s pomočjo klasifikacijske točnosti in ocene F1.
+
+\subsection{Bonus}
+V matriko filmov in uporabnikov sem dodal novega uporabnika z mojimi ocenami filmov. Ocenil sem 16 filmov, ostali filmi v matriki so bili tako kot pri ostalih uporabnikih ocenjeni z oceno 0.
+
+\begin{lstlisting}
+myRatings = [4, 5, 0, 0, 0, 0, 0, 0 ,0, 4, 0, 0, 0, 0,
+             3, 0, 0, 0, 0, 1, 0, 5, 0, 0, 0, 0, 0, 0,
+             4, 0, 5, 0, 0, 4, 4, 2, 0, 4, 5, 5, 5, 0, 5]
+myRLen = len(myRatings)
+
+for x in range(len(df)-myRLen):
+    myRatings.append(0)
+
+user = 9999
+
+df2 = pd.DataFrame({user:myRatings}, index = df.index)
+
+df = pd.concat([df,df2], axis=1)
+\end{lstlisting}
+
+Za novega uporabnika sem zgradil regresijski model s pomočjo metode Lasso in napovedal ocene za preostale filme.
 
 \section{Rezultati}
 
@@ -192,98 +238,57 @@ Podatke sem izvozil še v format .xslx in jih uporabil v programu Orange. Tudi t
 % varianti, kjer v tem poglavju prikažeš in komentiraš samo glavne
 % rezultate, kakšne manj zanimive detajle pa vključite v prilogo (glej
 % prilogi~\ref{app-res} in~\ref{app-code}).
-\subsection{Iskanje osamelcev}
-Na vprašanje kateri filmi imajo najbolj razpršene ocene odgovori varianca ocen posameznega filma. 
-
-Graf\ref{slika2} prikazuje kako so porazdeljene variance ocen vseh filmov z več kot 10 ocenami.
-
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[scale=0.7]{porazdelitev.png}
-\caption{Porazdelitev varianc ocen filmov}
-\label{slika2}
-\end{center}
-\end{figure}
-
-Dobljena porazdelitev precej odstopa od normalne\ref{slika2}. Od porazdelitev, ki smo jih spoznali porazdelitvi še najbolje ustreza porazdelitev beta. Izračunani oceni parametrov za beta porazdelitev so:
-\begin{lstlisting}
-params = stats.beta.fit(x)
-print(params)
-> (6.90759787872952, 27.9450733031308, -0.11751603359648, 5.1490259125502)
-\end{lstlisting}
-
-
-Na grafu\ref{slika5}, ki ima dorisano še krivuljo beta porazdelitve lahko primerjamo ujemanje beta porazdelitve z dejansko.
-
-Preizkusil sem še nekaj ostalih porazdelitev. Za najboljšo se je izkazala \href{https://en.wikipedia.org/wiki/Noncentral_t-distribution}{Noncentral t-distribution}\ref{slika4}. 
-
-
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[scale=0.7]{porazdelitevBeta.png}
-\caption{Primerjava krivulje porazdelitve z Beta}
-\label{slika5}
-\end{center}
-\end{figure}
-
-
-V zgornjih 5\% statistično najbolj značilnih filmov spada 133 filmov od 2245. Tabela\ref{tab3} prikazuje 10 filmov, ki so med vsemi najbolj izstopali.
+\subsection{Regresija}
+V tabeli~\ref{tab1} so prikazani rezultati vseh treh modelov. Za najslabšega se je
+izkazal model zgrajen z linearno regresijo, medtem ko sta Lasso in Bayesian Ridge
+vračala skoraj identične rezultate.
 
 
 \begin{table}[htbp]
-\caption{10 najbolj statistično značilnih filmov}
-\label{tab3}
+\caption{Rezultati modelov za regresijo}
+\label{tab1}
 \begin{center}
-\begin{tabular}{lp{2cm}}
+\begin{tabular}{lp{4cm}}
 \hline
-naslov filma & varianca \\
+model & mean absolute error \\
 \hline
-Killing Zoe (1994) & 2.620\\
-Dead Man (1995) & 2.558 \\
-Christmas Carol, A (1938) & 2.428\\
-Cook the Thief His Wife \& Her Lover, The (1989) & 2.372 \\
-Stalker (1979) & 2.323\\
-Event Horizon (1997) & 2.322 \\
-Great Expectations (1998) & 2.317 \\
-Dungeons \& Dragons (2000) & 2.316 \\
-The Hunger Games: Mockingjay - Part 1 (2014) & 2.281 \\
-Deadpool (2016) & 2.273 \\
+Linear regression & 1.3557 \\
+Lasso & 1.2347 \\
+BayesianRidge & 1.2379 \\
 \hline
 \end{tabular}
 \end{center}
 \end{table}
 
-\subsection{Gručenje filmov}
-Za gručenje filmov sem izbral metode k-means, dbscan in hirearhično razvrščanje. Za mero podobnosti sem uporabil evklidsko in manhatensko razdaljo ter wardovo metodo. Poleg naštetih sem podobnost meril tudi z razmerjem med številom uporabnikov ki so ocenili oba filma in unijo uporabnikov, ki so ocenili vsaj enega izmed filmov.
+\subsection{Klasifikacija}
 
-Izbran nabor algoritmov za gručenje in mer podobnosti težko utemeljim, saj so se vsi izkazali za neuporabne za dani problem.
+Z modelom SVM sem uspel napoved v primerjavi z večinskim klasifikatorjem izboljšati
+za približno 14\%.
 
-Med izbranimi filmi je 53 skupin, če privzamemo, da je vsaka kombinacija žanrov svoja skupina. Če upoštevamo samo prvo napisano kategorijo, pa izbrani filmi spadajo v 11 različnih skupin\ref{tab4}. Štirje filmi izmed izbranih filmov nimajo določenega žanra.
-
-Obstaja veliko metod in ocen za ocenitev kvalitete razvrščanja v gruče kot so naprimer silhouette, dunn's index, Krzanowski-Lai index, R-square,..
-
-Za validacijo gručenja sem uporabil silhouette score, ki omogoča še vizualizacijo ocene. Ocenil sem dobljene gruče, ki sem jih dobil po uporabi metode k-means\ref{slika5} in hirearhičnega razvrščanja\ref{slika6}.
-
-
-
-\begin{figure}[htbp]
+\begin{table}[htbp]
+\caption{Rezultati modela SVM za klasifikacijo}
+\label{tab2}
 \begin{center}
-\includegraphics[scale=0.7]{k-means-silhuette.png}
-\caption{K-means silhuette}
-\label{slika5}
+\begin{tabular}{lp{4cm}}
+\hline
+mera & rezultat \\
+\hline
+večinski klasifikator & 0.5467 \\
+klasifikacijska točnost & 0.6847 \\
+F1 & 0.6471 \\
+\hline
+\end{tabular}
 \end{center}
-\end{figure}
+\end{table}
 
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[scale=0.7]{hirearhicno-silhuette.png}
-\caption{silhuette score za hirearhično razvrščanje}
-\label{slika6}
-\end{center}
-\end{figure}
+Klasifikacijski problem je lažji od regresijskega, saj je pri klasifikaciji nabor vrednosti
+precej manjši kot pri regresiji, kjer napovedujemo vrednost v zveznem prostoru.
 
-
-Dobljeni rezultati so zelo slabi. Gruče delujejo zelo naključno v primerjavi s pravimi žanri. Tudi dobljena ocena silhouette je bila v obeh primerih zelo nizka, pri hirearhičnem razvrščanju ima veliko filmov tudi negativno silhuette oceno, kar pomeni, da niso podobni ostalim filmom v svojem razredu.
+\subsection{Bonus}
+Ocenil sem 16 od 151 filmov, kar se je izkazalo za premalo, da bi lahko model vrnil uporabne
+napovedi. Večina ocen se je gibala med 1 in 2. Algoritem je pravilno višje ocenil animirane filme,
+ni pa uspel razpoznati povezave med nadaljevanji filmov. Napoved se pri majhnem številu ocenjenih
+filmov ni izkazala za uporabno.
 
 \section{Izjava o izdelavi domače naloge}
 Domačo nalogo in pripadajoče programe sem izdelal sam.
@@ -297,55 +302,7 @@ Domačo nalogo in pripadajoče programe sem izdelal sam.
 % rezultatov pa lahko predstaviš v prilogi. V glavnem besedilu ne
 % pozabi navesti, da so podrobni rezultati podani v prilogi.
 
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[scale=0.7]{porazdelitevNormalna.png}
-\caption{Primerjava dejanske krivulje porazdelitve in krivulje normalne porazdelitve}
-\label{slika3}
-\end{center}
-\end{figure}
 
-
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[scale=0.7]{porazdelitevStudent.png}
-\caption{Primerjava krivulje porazdelitve z Noncentral t-distribution}
-\label{slika4}
-\end{center}
-\end{figure}
-
-\begin{figure}[htbp]
-\begin{center}
-\includegraphics[scale=0.7]{hirearhicno.png}
-\caption{hirearhično razvrščanje}
-\label{slika7}
-\end{center}
-\end{figure}
-
-\begin{table}[htbp]
-\caption{Število filmov v posamezni kategoriji}
-\label{tab4}
-\begin{center}
-\begin{tabular}{lp{2cm}}
-\hline
-žanr & število filmov \\
-\hline
-
-Comedy      & 28 \\  
-Drama       & 22 \\  
-Action      & 18 \\  
-Crime       & 12 \\  
-Horror      &  6 \\  
-Adventure   &  5 \\  
-Animation   &  1 \\  
-Documentary &  1 \\  
-Mystery     &  1 \\  
-Romance     &  1 \\  
-Thriller    &  1 \\ 
-\hline
-\end{tabular}
-\end{center}
-\end{table}
 
 \section{\label{app-code}Programska koda}
 
