@@ -19,12 +19,14 @@ dfMovies = pd.read_csv('../data/movies.csv')
 # transform df
 df = dfRatings.pivot(index='movieId', columns='userId', values='rating')
 
+# get users with more than 100 ratings
+dfU = df.dropna(axis=1, how='any', thresh=100, subset=None)
 
 # drop movies with less than 100 ratings
 df.dropna(axis=0, how='any', thresh=100, subset=None, inplace=True)
 
 # drop users with less than 100 ratings
-df.dropna(axis=1, how='any', thresh=100, subset=None, inplace=True)
+df.drop([col for col in df.columns if col not in dfU.columns], axis=1, inplace=True)
 
 
 # replace null values with 0
@@ -36,9 +38,11 @@ ridgeScores = []
 
 for user in df.columns:
     for x in range(3):
+        uDf = df[df.loc[:, user] > 0]
+
         # split df into training and test sets
-        trainDf = df.sample(frac=.75)
-        testDf = df[~df.index.isin(trainDf.index)]
+        trainDf = uDf.sample(frac=.75)
+        testDf = uDf[~uDf.index.isin(trainDf.index)]
 
         # get ratings of current user
         trainUserDf = trainDf.loc[:, user].copy()

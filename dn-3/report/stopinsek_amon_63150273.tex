@@ -113,15 +113,18 @@ dfRatings = pd.read_csv('../data/ratings.csv')
 df = dfRatings.pivot(index='movieId', columns='userId', values='rating')
 \end{lstlisting}
 
-Iz podatkov sem nato odstranil vse filme z manj kot 100 ocenami, iz dobljene
-matrike sem nato odstranil še vse uporabnike z manj kot 100 ocenami.
+Iz podatkov sem nato odstranil vse filme in uporabnike z manj kot 100 ocenami.
 
 \begin{lstlisting}
+# get users with more than 100 ratings
+dfU = df.dropna(axis=1, how='any', thresh=100, subset=None)
+
 # drop movies with less than 100 ratings
 df.dropna(axis=0, how='any', thresh=100, subset=None, inplace=True)
 
 # drop users with less than 100 ratings
-df.dropna(axis=1, how='any', thresh=100, subset=None, inplace=True)
+df.drop([col for col in df.columns if col not in dfU.columns], axis=1, inplace=True)
+
 \end{lstlisting}
 
 Pred začetkom granjem modelov je bilo potrebno poskrbeti še za neznane vrednosti.
@@ -135,17 +138,19 @@ df = df.fillna(0)
 Za regresijo sem izbral tri modele Linear regression, Lasso in Bayesian Ridge.
 
 Učenja modelov sem se lotil tako, da sem za vsakega uporabnika iz matrike trikrat
-naključno izbral primere za učno in testno množico, naučil model s podatki iz
-učne množice in ga ovrednotil s pomočjo testne množice. Uporabnika za katerega
-sem gradil model, sem uporabil le kot ciljno spremenljivko, zato sem njegove
-ocene iz učne in testne množice odstranil.
+naključno izbral primere za učno in testno množico brez primerov filmov, ki jih
+uporabnik ni ocenil, naučil model s podatki iz učne množice in ga ovrednotil s 
+pomočjo testne množice. Uporabnika za katerega sem gradil model, sem uporabil le 
+kot ciljno spremenljivko, zato sem njegove ocene iz učne in testne množice odstranil.
 
 \begin{lstlisting}
 for user in df.columns:
     for x in range(3):
+        uDf = df[df.loc[:, user] > 0]
+
         # split df into training and test sets
-        trainDf = df.sample(frac=.75)
-        testDf = df[~df.index.isin(trainDf.index)]
+        trainDf = uDf.sample(frac=.75)
+        testDf = uDf[~uDf.index.isin(trainDf.index)]
 
         # get ratings of current user
         trainUserDf = trainDf.loc[:, user].copy()
@@ -154,7 +159,7 @@ for user in df.columns:
         # drop current user from training and test sets
         trainDf = trainDf.drop(user, 1)
         testDf = testDf.drop(user, 1)
-
+        
         ### learn and evaluate models ###
 \end{lstlisting}
 
@@ -176,20 +181,30 @@ def learnPredictScore(model, trainX, trainY, testX, testY):
 
 
 \subsection{Klasifikacija}
-Priprava podatkov za klasifikacijo je potekala na enak način kot pri regresiji. Vrednosti v matriki filmov in uporabnikov sem pretvoril v dva razreda, 0 če je bila ocena manjša ali enaka 3, sicer 1.
+Priprava podatkov za klasifikacijo je potekala na enak način kot pri regresiji. Vrednosti v ciljni 
+spremenljivki uporabnika sem pretvoril v dva razreda, 0 če je bila ocena manjša ali enaka 3, sicer 1.
 
 \begin{lstlisting}
-df = df.applymap(lambda x: 1 if x > 3 else 0)
+# binarize current user data
+trainUserDf = trainUserDf.apply(lambda x: 1 if x > 3 else 0)
+testUserDf = testUserDf.apply(lambda x: 1 if x > 3 else 0)
 \end{lstlisting}
 
-Za vsakega uporabnika iz matrike sem trikrat naključno izbral primerke za učno in testno množico, naučil modele ter jih ovrednotil s pomočjo klasifikacijske točnosti in ocene F1.
+Za klasifikacijo sem izbral metodo podpornih vektorjev. Metoda vsak primer iz učne množice predstavi
+kot vektor pri katerem je znan ciljni razred, komponente vektorja pa predstavljajo ostali atributi. 
+Metoda v danem prostoru poišče hiperravnino ki najbolje loči prostor glede na ciljni razred. Glavna
+parametra, ki ju lahko nastavimo sta koeficient pri ceni ob napaki in tip funkcije za ločitev prostora 
+(linearna, polinomska...).
+
+Za vsakega uporabnika iz matrike sem trikrat naključno izbral primerke za učno in testno množico, 
+naučil model ter ga ovrednotil s pomočjo klasifikacijske točnosti in ocene F1.
 
 \subsection{Bonus}
-V matriko filmov in uporabnikov sem dodal novega uporabnika z mojimi ocenami filmov. Ocenil sem 16 filmov, ostali filmi v matriki so bili tako kot pri ostalih uporabnikih ocenjeni z oceno 0.
+V matriko filmov in uporabnikov sem dodal novega uporabnika z mojimi ocenami filmov. Ocenil sem 16 filmov, ostali filmi v matriki so bili tako kot pri ostalih uporabnikih ocenjeni z oceno 0. 
 
 \begin{lstlisting}
-myRatings = [4, 5, 0, 0, 0, 0, 0, 0 ,0, 4, 0, 0, 0, 0,
-             3, 0, 0, 0, 0, 1, 0, 5, 0, 0, 0, 0, 0, 0,
+myRatings = [4, 5, 0, 0, 0, 0, 0, 0 ,0, 4, 0, 0, 0, 0, 
+             3, 0, 0, 0, 0, 1, 0, 5, 0, 0, 0, 0, 0, 0, 
              4, 0, 5, 0, 0, 4, 4, 2, 0, 4, 5, 5, 5, 0, 5]
 myRLen = len(myRatings)
 
@@ -239,9 +254,8 @@ Za novega uporabnika sem zgradil regresijski model s pomočjo metode Lasso in na
 % rezultate, kakšne manj zanimive detajle pa vključite v prilogo (glej
 % prilogi~\ref{app-res} in~\ref{app-code}).
 \subsection{Regresija}
-V tabeli~\ref{tab1} so prikazani rezultati vseh treh modelov. Za najslabšega se je
-izkazal model zgrajen z linearno regresijo, medtem ko sta Lasso in Bayesian Ridge
-vračala skoraj identične rezultate.
+V tabeli~\ref{tab1} so prikazani rezultati vseh treh modelov. Vsi 
+zgrajeni modeli so se izkazali za skoraj enakovredne.
 
 
 \begin{table}[htbp]
@@ -252,9 +266,9 @@ vračala skoraj identične rezultate.
 \hline
 model & mean absolute error \\
 \hline
-Linear regression & 1.3557 \\
-Lasso & 1.2347 \\
-BayesianRidge & 1.2379 \\
+Linear regression & 0.6613 \\
+Lasso & 0.6552 \\
+BayesianRidge & 0.6611 \\
 \hline
 \end{tabular}
 \end{center}
@@ -262,8 +276,8 @@ BayesianRidge & 1.2379 \\
 
 \subsection{Klasifikacija}
 
-Z modelom SVM sem uspel napoved v primerjavi z večinskim klasifikatorjem izboljšati
-za približno 14\%.
+Z modelom SVM sem uspel napoved v primerjavi z večinskim klasifikatorjem izboljšati 
+za približno 20\%.
 
 \begin{table}[htbp]
 \caption{Rezultati modela SVM za klasifikacijo}
@@ -274,18 +288,18 @@ za približno 14\%.
 mera & rezultat \\
 \hline
 večinski klasifikator & 0.5467 \\
-klasifikacijska točnost & 0.6847 \\
-F1 & 0.6471 \\
+klasifikacijska točnost & 0.7415 \\
+F1 & 0.7722 \\
 \hline
 \end{tabular}
 \end{center}
 \end{table}
 
-Klasifikacijski problem je lažji od regresijskega, saj je pri klasifikaciji nabor vrednosti
+Klasifikacijski problem je lažji od regresijskega, saj je pri klasifikaciji nabor vrednosti 
 precej manjši kot pri regresiji, kjer napovedujemo vrednost v zveznem prostoru.
 
 \subsection{Bonus}
-Ocenil sem 16 od 151 filmov, kar se je izkazalo za premalo, da bi lahko model vrnil uporabne
+Ocenil sem 16 od 151 filmov, kar se je izkazalo za premalo, da bi lahko model vrnil uporabne 
 napovedi. Večina ocen se je gibala med 1 in 2. Algoritem je pravilno višje ocenil animirane filme,
 ni pa uspel razpoznati povezave med nadaljevanji filmov. Napoved se pri majhnem številu ocenjenih
 filmov ni izkazala za uporabno.
